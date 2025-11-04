@@ -4,9 +4,12 @@ USE eventos_app;
 -- 1️⃣ Tabla de usuarios
 CREATE TABLE usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100) NOT NULL,
-  email VARCHAR(120) UNIQUE,
+  dni VARCHAR(20) UNIQUE NOT NULL,
+  nombres VARCHAR(100) NOT NULL,
+  apellidos VARCHAR(100) NOT NULL,
+  email VARCHAR(120) UNIQUE NOT NULL,
   telefono VARCHAR(20),
+  empresa VARCHAR(120),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
