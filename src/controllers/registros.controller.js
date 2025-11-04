@@ -40,7 +40,7 @@ export const confirmarRegistro = async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await pool.query(
-      `SELECT r.*, u.nombre, u.email, e.nombre AS evento, e.fecha_evento
+      `SELECT r.*, u.nombres, u.email, e.nombre AS evento, e.fecha_evento
        FROM registros r
        JOIN usuarios u ON u.id = r.usuario_id
        JOIN eventos e ON e.id = r.evento_id
@@ -70,7 +70,7 @@ export const confirmarRegistro = async (req, res) => {
     // HTML con la imagen referenciada por cid
     const htmlCorreo = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;">
-        <h2 style="color:#0078D7;">¡Hola ${registro.nombre}!</h2>
+        <h2 style="color:#0078D7;">¡Hola ${registro.nombres}!</h2>
         <p>Tu registro al evento <strong>${registro.evento}</strong> ha sido confirmado ✅.</p>
         <p><strong>Fecha del evento:</strong> ${new Date(registro.fecha_evento).toLocaleDateString()}</p>
         <p>Presenta este código QR en la entrada para tu ingreso:</p>
@@ -112,22 +112,83 @@ export const confirmarRegistro = async (req, res) => {
   }
 };
 
+
+
+
+export const reenviarRecordatorios = async (req, res) => {
+  try {
+    // Opcionalmente puedes filtrar por evento_id si lo envías desde el frontend
+    const { evento_id } = req.body;
+
+    const query = evento_id
+      ? `SELECT u.nombres, u.apellidos, u.email, e.nombre AS evento
+         FROM registros r
+         JOIN usuarios u ON u.id = r.usuario_id
+         JOIN eventos e ON e.id = r.evento_id
+         WHERE r.estado = 'confirmado' AND e.id = ?`
+      : `SELECT u.nombres, u.apellidos, u.email, e.nombre AS evento
+         FROM registros r
+         JOIN usuarios u ON u.id = r.usuario_id
+         JOIN eventos e ON e.id = r.evento_id
+         WHERE r.estado = 'confirmado'`;
+
+    const [usuarios] = await pool.query(query, evento_id ? [evento_id] : []);
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({ error: "No hay usuarios confirmados para enviar." });
+    }
+
+    let enviados = 0;
+    for (const u of usuarios) {
+      const html = `
+        <h2>Hola ${u.nombres} ${u.apellidos},</h2>
+        <p>Gracias por confirmar tu participación en el evento <strong>${u.evento}</strong>.</p>
+        <p>Este es un recordatorio para que no te pierdas esta gran experiencia. ¡Te esperamos!</p>
+        <p><em>Equipo Xplora Eventos</em></p>
+      `;
+
+      const enviado = await enviarCorreo(u.email, `Recordatorio - ${u.evento}`, html);
+      if (enviado) enviados++;
+    }
+
+    res.json({
+      ok: true,
+      mensaje: `Correos enviados correctamente (${enviados}/${usuarios.length})`,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al reenviar recordatorios." });
+  }
+};
+
 export const listarRegistros = async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT r.id, u.nombre AS usuario, u.email, e.nombre AS evento,
-             r.estado, r.qr_code, r.fecha_registro, r.fecha_confirmacion
+      SELECT 
+        r.id,
+        u.dni,
+        CONCAT(u.nombres, ' ', u.apellidos) AS usuario,
+        u.email,
+        u.telefono,
+        u.empresa,
+        e.nombre AS evento,
+        r.estado,
+        r.qr_code,
+        r.fecha_registro,
+        r.fecha_confirmacion
       FROM registros r
       JOIN usuarios u ON u.id = r.usuario_id
       JOIN eventos e ON e.id = r.evento_id
       ORDER BY r.fecha_registro DESC
     `);
+
     res.json(rows);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error al listar registros" });
   }
 };
+
 
 
 export const validarQR = async (req, res) => {

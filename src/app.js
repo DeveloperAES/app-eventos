@@ -6,7 +6,10 @@ import eventosRoutes from "./routes/eventos.routes.js";
 import registrosRoutes from "./routes/registros.routes.js";
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  // origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
+  // credentials: true
+}));
 app.use(express.json());
 
 // Rutas base
